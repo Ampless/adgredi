@@ -4,20 +4,20 @@ import 'dart:typed_data';
 
 import 'package:utf/utf.dart';
 
-Future<List<int>> singleCheck(InternetAddress addr, List<int> packet) async {
-  var data = <int>[];
-  var sock = await Socket.connect(addr, 25565);
-  var eror = false;
-  sock.listen((event) {
-    data.addAll(event);
-  }, onError: (err) {
-    eror = true;
-    print(err);
+void singleCheck(
+  InternetAddress addr,
+  List<int> packet,
+  void Function(List<int>) callback,
+) {
+  Socket.connect(addr, 25565).then((sock) {
+    var data = <int>[];
+    sock.listen(
+      (event) => data.addAll(event),
+      onError: (e) => print(e is Error ? '$e\n\n${e.stackTrace}' : e),
+      onDone: () => callback(data),
+    );
+    sock.add(packet);
   });
-  sock.write(packet);
-  await sock.flush();
-  await sock.close();
-  return eror ? null : data;
 }
 
 List<int> oldPacket(InternetAddress addr) {
@@ -66,13 +66,34 @@ List<int> newPacket(InternetAddress addr) {
   return l;
 }
 
-Future<List<int>> check(List<int> ip) async {
+Map<int, List<int>> oldChecks = {};
+Map<int, List<int>> newChecks = {};
+
+void check(List<int> ip) {
   var addr = InternetAddress.fromRawAddress(Uint8List.fromList(ip));
-  var oldCheck = await singleCheck(addr, oldPacket(addr));
-  if (oldCheck != null) return oldCheck;
-  return singleCheck(addr, newPacket(addr));
+  singleCheck(addr, oldPacket(addr), (oldCheck) {
+    oldChecks[1] = oldCheck;
+    Future.delayed(
+      Duration(seconds: 1),
+      () => singleCheck(addr, newPacket(addr), (newCheck) {
+        newChecks[1] = newCheck;
+      }),
+    );
+  });
+}
+
+void checkThing() {
+  Future.delayed(Duration(milliseconds: 100), () {
+    if (newChecks.isEmpty)
+      checkThing();
+    else {
+      print(decodeUtf8(oldChecks[1]));
+      print(decodeUtf8(newChecks[1]));
+    }
+  });
 }
 
 void main(List<String> arguments) async {
-  print(await check([127, 0, 0, 1]));
+  check([212, 224, 77, 85]); //this is just gommehd.net, it works.
+  checkThing();
 }
