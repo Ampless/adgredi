@@ -59,7 +59,7 @@ List<int> oldPacket(InternetAddress addr) {
 
 List<int> newPacket(InternetAddress addr) {
   var l = [0x00, 0x00];
-  var host = encodeUtf8(addr.host);
+  final host = encodeUtf8(addr.host);
   l.add(host.length);
   l.addAll(host);
   l.addAll([0x63, 0xdd, 0x01]);
@@ -70,7 +70,7 @@ Map<int, List<int>> oldChecks = {};
 Map<int, List<int>> newChecks = {};
 
 void check(List<int> ip) {
-  var addr = InternetAddress.fromRawAddress(Uint8List.fromList(ip));
+  final addr = InternetAddress.fromRawAddress(Uint8List.fromList(ip));
   singleCheck(addr, oldPacket(addr), (oldCheck) {
     oldChecks[1] = oldCheck;
     Future.delayed(
